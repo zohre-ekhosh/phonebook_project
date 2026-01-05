@@ -5,7 +5,8 @@ import os
 
 class PhoneBookDB:
     def __init__(self, db_name="phonebook.db"):
-        self.db_name = db_name
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        self.db_name = os.path.join(project_dir, db_name)
         self._init_db()
     
     def _get_conn(self):
@@ -166,11 +167,14 @@ def show_all(db, title):
 def test_all():
     print("=== Testing all DB functions ===")
     
-    # Clean old test
-    if os.path.exists("test.db"):
-        os.remove("test.db")
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+    test_db_path = os.path.join(project_dir, "test.db")
     
-    db = PhoneBookDB("test.db")
+    # Clean old test
+    if os.path.exists(test_db_path):
+        os.remove(test_db_path)
+    
+    db = PhoneBookDB("test.db")  
     
     # 1. Start with empty DB
     show_all(db, "1. EMPTY DATABASE (START)")
@@ -241,7 +245,12 @@ def test_all():
     
     # 6. Final state
     show_all(db, "9. FINAL DATABASE STATE")
+    
+    print(f"\n✓ Database files created in project folder: {project_dir}")
+    print(f"  - phonebook.db (main database)")
+    print(f"  - test.db (test database)")
 
 # Run test
 if __name__ == "__main__":
+
     test_all()
