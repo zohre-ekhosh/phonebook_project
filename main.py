@@ -60,7 +60,6 @@ class ContactRow(ft.Container):
         self.margin = ft.margin.only(bottom=5)
 
     def create_photo_display(self):
-        # Display contact photo or default avatar
         photo_path = self.contact.get("photo_path")
         
         if photo_path and os.path.exists(photo_path):
@@ -91,6 +90,104 @@ class ContactRow(ft.Container):
             bgcolor=ft.Colors.GREY_200,
             alignment=ft.alignment.center,
         )
+
+
+class LoginDialog:
+    """Simple login page"""
+    def __init__(self, page, on_login_success):
+        self.page = page
+        self.on_login_success = on_login_success
+        
+        self.username_field = ft.TextField(
+            label="نام کاربری",
+            width=250,
+            border_color=ft.Colors.ORANGE_400,
+            text_align=ft.TextAlign.RIGHT,
+            on_submit=self.handle_login
+        )
+        
+        self.password_field = ft.TextField(
+            label="رمز عبور",
+            width=250,
+            border_color=ft.Colors.ORANGE_400,
+            password=False,  # visible
+            text_align=ft.TextAlign.RIGHT,
+            on_submit=self.handle_login
+        )
+        
+        self.error_text = ft.Text("", color=ft.Colors.RED, size=12, visible=False)
+        
+        self.build_dialog()
+    
+    def build_dialog(self):
+        self.dialog_content = ft.Container(
+            width=400,
+            height=350,
+            bgcolor=ft.Colors.WHITE,
+            border_radius=15,
+            padding=25,
+            content=ft.Column(
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=20,
+                controls=[
+                    ft.Column([
+                        ft.Icon(ft.Icons.SECURITY, size=40, color=ft.Colors.ORANGE_600),
+                        ft.Text("ورود مدیر سیستم", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.ORANGE_800),
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    
+                    ft.Column([
+                        self.username_field,
+                        self.password_field,
+                        self.error_text,
+                    ], spacing=15),
+                    
+                    ft.Container(
+                        content=ft.Text("نام کاربری: admin / رمز عبور: admin123", 
+                                      size=11, color=ft.Colors.GREY_500, italic=True),
+                        padding=10,
+                        bgcolor=ft.Colors.GREY_100,
+                        border_radius=8,
+                    ),
+                    
+                    ft.ElevatedButton(
+                        "ورود",
+                        icon=ft.Icons.LOGIN,
+                        on_click=self.handle_login,
+                        bgcolor=ft.Colors.ORANGE_400,
+                        color=ft.Colors.WHITE,
+                        width=120,
+                    ),
+                ]
+            )
+        )
+        
+        self.overlay = ft.Container(
+            content=self.dialog_content,
+            alignment=ft.alignment.center,
+            expand=True,
+            bgcolor=ft.Colors.BLACK54,
+        )
+    
+    def show(self):
+        self.page.overlay.append(self.overlay)
+        self.page.update()
+    
+    def close(self):
+        if self.overlay in self.page.overlay:
+            self.page.overlay.remove(self.overlay)
+        self.page.update()
+    
+    def handle_login(self, e):
+        username = self.username_field.value.strip()
+        password = self.password_field.value.strip()
+        
+        if username == "admin" and password == "admin123":
+            self.close()
+            self.on_login_success()
+        else:
+            self.error_text.value = "نام کاربری یا رمز عبور نادرست"
+            self.error_text.visible = True
+            self.page.update()
 
 
 class PhoneBookApp:
@@ -124,64 +221,55 @@ class PhoneBookApp:
         self.load_contacts()
     
     def validate_phone(self, phone):
-        # Validate Iranian phone numbers
         if not phone or not str(phone).strip():
             return False, "شماره تلفن نمی‌تواند خالی باشد"
         
         cleaned = re.sub(r'[^\d+]', '', str(phone))
         
-        # Valid Iranian phone patterns
         patterns = [
-            r'^\+98\d{10}$',      # +989121234567
-            r'^0098\d{10}$',      # 00989121234567
-            r'^98\d{10}$',        # 989121234567
-            r'^09\d{9}$',         # 09121234567
-            r'^9\d{9}$',          # 9121234567
-            r'^\d{10}$',          # 09121234567 یا 0211234567
-            r'^0\d{10}$',         # 02112345678
-            r'^0\d{2,9}$',        # Other landlines
+            r'^\+98\d{10}$',
+            r'^0098\d{10}$',
+            r'^98\d{10}$',
+            r'^09\d{9}$',
+            r'^9\d{9}$',
+            r'^\d{10}$',
+            r'^0\d{10}$',
+            r'^0\d{2,9}$',
         ]
         
         for pattern in patterns:
             if re.match(pattern, cleaned):
                 return True, self.format_phone(cleaned)
         
-        return False, "شماره تلفن نامعتبر است. فرمت‌های قابل قبول: 09123456789 یا 02187654321"
+        return False, "شماره تلفن نامعتبر است"
     
     def format_phone(self, phone):
-        # Standardize phone format
         cleaned = re.sub(r'[^\d+]', '', str(phone))
         
-        # Convert +98 to 0
         if cleaned.startswith('+98'):
             if cleaned.startswith('+989'):
                 return f"0{cleaned[3:]}"
             return cleaned[1:]
         
-        # Convert 0098 to 0
         if cleaned.startswith('0098'):
             if cleaned.startswith('00989'):
                 return f"0{cleaned[4:]}"
             return cleaned[2:]
         
-        # Convert 98 to 0
         if cleaned.startswith('98'):
             if cleaned.startswith('989'):
                 return f"0{cleaned[2:]}"
             return cleaned
         
-        # Add leading 0 to mobile numbers
         if cleaned.startswith('9') and len(cleaned) == 10:
             return f"0{cleaned}"
         
-        # Add leading 0 to 10-digit numbers
         if not cleaned.startswith('0') and len(cleaned) == 10:
             return f"0{cleaned}"
         
         return cleaned
     
     def show_validation_error(self, message):
-        # Show error snackbar
         self.page.snack_bar = ft.SnackBar(
             content=ft.Row([
                 ft.Icon(ft.Icons.ERROR, color=ft.Colors.WHITE),
@@ -194,7 +282,6 @@ class PhoneBookApp:
         self.page.update()
     
     def show_success_message(self, message):
-        # Show success snackbar
         self.page.snack_bar = ft.SnackBar(
             content=ft.Row([
                 ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.Colors.WHITE),
@@ -207,11 +294,10 @@ class PhoneBookApp:
         self.page.update()
     
     def handle_search_enter(self, e):
-        # Load contacts on Enter key
+        """Load contacts when Enter is pressed"""
         self.load_contacts()
 
     def setup_page(self):
-        # Configure page settings
         self.page.title = "سامانه مدیریت اطلاعات تماس"
         self.page.rtl = True
         self.page.bgcolor = ft.Colors.GREY_100
@@ -222,7 +308,6 @@ class PhoneBookApp:
         self.page.window_height = 850
 
     def build_header(self):
-        # Build header with logo and role toggle
         logo_widget = self.get_logo_widget()
         
         return ft.Container(
@@ -247,7 +332,7 @@ class PhoneBookApp:
                                         color=ft.Colors.ORANGE_700,
                                     ),
                                     ft.Text(
-                                        "مدیر سیستم" if self.is_admin else "کاربر عادی",
+                                        "مدیر سیستم" if self.is_admin else "صفحه اصلی",
                                         size=12,
                                         color=ft.Colors.ORANGE_800
                                     ),
@@ -269,7 +354,6 @@ class PhoneBookApp:
         )
     
     def get_logo_widget(self):
-        # Load logo from possible paths
         possible_paths = [
             "assets/111.png",
             "111.png",
@@ -299,7 +383,6 @@ class PhoneBookApp:
         )
 
     def hero_title(self, text="سامانه مدیریت اطلاعات تماس", size=28):
-        # Create main title section
         return ft.Container(
             width=self.page.width,
             padding=20,
@@ -315,7 +398,6 @@ class PhoneBookApp:
         )
 
     def build_search_box(self):
-        # Create advanced search form
         return ft.Container(
             bgcolor=ft.Colors.WHITE,
             padding=20,
@@ -361,7 +443,6 @@ class PhoneBookApp:
         )
 
     def build_admin_actions(self):
-        # Show admin buttons if admin mode
         if not self.is_admin:
             return ft.Container()
         
@@ -398,7 +479,6 @@ class PhoneBookApp:
         )
 
     def create_table_header(self):
-        # Create table header row
         headers = ["#", "عکس", "نام", "نام خانوادگی", "گروه آموزشی", "سمت اجرایی", "ایمیل", "تلفن"]
         if self.is_admin:
             headers.append("عملیات")
@@ -424,7 +504,6 @@ class PhoneBookApp:
         )
 
     def load_contacts(self, e=None):
-        # Load and display contacts
         self.contacts_container.controls.clear()
         self.contacts_container.controls.append(self.create_table_header())
         
@@ -460,21 +539,36 @@ class PhoneBookApp:
         self.page.update()
 
     def toggle_role(self, e):
-        # Switch between admin and user roles
-        self.is_admin = e.control.value
+        if e.control.value:
+            self.show_login_dialog()
+        else:
+            self.is_admin = False
+            self.page.controls.clear()
+            self.build_ui()
+            self.load_contacts()
+            self.page.update()
+    
+    def show_login_dialog(self):
+        login_dialog = LoginDialog(
+            page=self.page,
+            on_login_success=self.on_login_success
+        )
+        login_dialog.show()
+    
+    def on_login_success(self):
+        self.is_admin = True
+        self.show_success_message("خوش آمدید مدیر سیستم!")
         self.page.controls.clear()
         self.build_ui()
         self.load_contacts()
         self.page.update()
 
     def clear_search(self, e):
-        # Clear search fields
         for field in self.search_fields.values():
             field.value = ""
         self.load_contacts()
 
     def create_photo_preview(self, photo_path):
-        # Create photo preview widget
         if photo_path and os.path.exists(photo_path):
             try:
                 with open(photo_path, 'rb') as f:
@@ -501,26 +595,22 @@ class PhoneBookApp:
         )
 
     def close_dialog(self):
-        # Close current dialog
         if self.current_dialog:
             self.page.overlay.remove(self.current_dialog)
             self.current_dialog = None
             self.page.update()
 
     def show_add_dialog(self, e):
-        # Show add contact dialog
         self.close_dialog()
         
         selected_photo_path = None
         photo_preview = self.create_photo_preview(None)
         
-        # Form fields
         first_name = ft.TextField(label="نام *", width=350, border_color=ft.Colors.ORANGE_400)
         last_name = ft.TextField(label="نام خانوادگی *", width=350, border_color=ft.Colors.ORANGE_400)
         position = ft.TextField(label="سمت اجرایی", width=350, border_color=ft.Colors.ORANGE_400)
         email = ft.TextField(label="ایمیل", width=350, border_color=ft.Colors.ORANGE_400)
         
-        # Phone field with validation
         phone = ft.TextField(
             label="تلفن *", 
             width=350, 
@@ -534,7 +624,6 @@ class PhoneBookApp:
         phone_error_text = ft.Text("", size=12, color=ft.Colors.RED, visible=False)
         
         def validate_phone_field_in_dialog(phone_field, error_text):
-            # Validate phone in real-time
             phone_value = phone_field.value.strip()
             if phone_value:
                 is_valid, _ = self.validate_phone(phone_value)
@@ -569,7 +658,6 @@ class PhoneBookApp:
         file_picker = ft.FilePicker()
         
         def handle_photo_selection(e: ft.FilePickerResultEvent):
-            # Handle photo file selection
             nonlocal selected_photo_path
             
             if e.files and len(e.files) > 0:
@@ -604,7 +692,6 @@ class PhoneBookApp:
         self.page.overlay.append(file_picker)
         
         def save_contact(e):
-            # Validate required fields
             required_fields = [
                 ("نام", first_name.value),
                 ("نام خانوادگی", last_name.value),
@@ -621,7 +708,6 @@ class PhoneBookApp:
                 self.show_validation_error(f"فیلدهای اجباری خالی هستند: {', '.join(missing_fields)}")
                 return
             
-            # Validate phone
             is_valid, formatted_phone = self.validate_phone(phone.value)
             if not is_valid:
                 self.show_validation_error("شماره تلفن نامعتبر است")
@@ -637,7 +723,6 @@ class PhoneBookApp:
                 'photo_path': ''
             }
             
-            # Save photo if selected
             if selected_photo_path:
                 try:
                     file_ext = os.path.splitext(selected_photo_path)[1]
@@ -658,7 +743,6 @@ class PhoneBookApp:
                 self.show_validation_error(message)
         
         def close_dialog_local(e):
-            # Close dialog
             self.close_dialog()
         
         form_column = ft.Column(
@@ -776,13 +860,11 @@ class PhoneBookApp:
         self.page.update()
 
     def show_add_csv_dialog(self, e):
-        # Show CSV import dialog
         self.close_dialog()
         
         contacts_from_file = []
         
         def handle_file_pick(e: ft.FilePickerResultEvent):
-            # Process CSV file
             contacts_from_file.clear()
             
             if e.files and e.files[0].path:
@@ -809,13 +891,11 @@ class PhoneBookApp:
                     for row in reader:
                         row_num += 1
                         
-                        # Validate required fields
                         missing_columns = [col for col in required_columns if not row.get(col)]
                         if missing_columns:
                             invalid_rows.append(f"ردیف {row_num}: فیلدهای خالی {', '.join(missing_columns)}")
                             continue
                         
-                        # Validate phone
                         phone_value = row.get('phone', '').strip()
                         is_valid, formatted_phone = self.validate_phone(phone_value)
                         if not is_valid:
@@ -853,7 +933,6 @@ class PhoneBookApp:
             self.page.update()
         
         def save_contacts_from_file(e):
-            # Save all valid contacts from CSV
             if not contacts_from_file:
                 return
             
@@ -889,7 +968,6 @@ class PhoneBookApp:
             self.page.update()
         
         def close_dialog_local(e):
-            # Close dialog
             self.close_dialog()
         
         file_picker = ft.FilePicker()
@@ -988,7 +1066,6 @@ class PhoneBookApp:
         self.page.update()
 
     def edit_contact(self, contact_id):
-        # Show edit contact dialog
         self.close_dialog()
         
         contacts = self.db.get_all()
@@ -1058,7 +1135,6 @@ class PhoneBookApp:
         phone_error_text = ft.Text("", size=12, color=ft.Colors.RED, visible=False)
         
         def validate_phone_field_in_dialog(phone_field, error_text):
-            # Validate phone in real-time
             phone_value = phone_field.value.strip()
             if phone_value:
                 is_valid, _ = self.validate_phone(phone_value)
@@ -1077,7 +1153,6 @@ class PhoneBookApp:
         file_picker = ft.FilePicker()
         
         def handle_photo_selection(e: ft.FilePickerResultEvent):
-            # Handle photo file selection
             nonlocal selected_photo_path
             
             if e.files and len(e.files) > 0:
@@ -1112,7 +1187,6 @@ class PhoneBookApp:
         self.page.overlay.append(file_picker)
         
         def save_changes(e):
-            # Validate required fields
             required_fields = [
                 ("نام", first_name_field.value),
                 ("نام خانوادگی", last_name_field.value),
@@ -1129,7 +1203,6 @@ class PhoneBookApp:
                 self.show_validation_error(f"فیلدهای اجباری خالی هستند: {', '.join(missing_fields)}")
                 return
             
-            # Validate phone
             is_valid, formatted_phone = self.validate_phone(phone_field.value)
             if not is_valid:
                 self.show_validation_error("شماره تلفن نامعتبر است")
@@ -1144,7 +1217,6 @@ class PhoneBookApp:
                 'phone': formatted_phone
             }
             
-            # Update photo if changed
             if selected_photo_path:
                 try:
                     file_ext = os.path.splitext(selected_photo_path)[1]
@@ -1173,7 +1245,6 @@ class PhoneBookApp:
                 self.show_validation_error("خطا در به‌روزرسانی")
         
         def close_dialog_local(e):
-            # Close dialog
             self.close_dialog()
         
         form_column = ft.Column(
@@ -1291,7 +1362,6 @@ class PhoneBookApp:
         self.page.update()
 
     def delete_contact(self, contact_id):
-        # Delete contact and associated photo
         success, _ = self.db.delete(contact_id)
         
         if success:
@@ -1309,7 +1379,6 @@ class PhoneBookApp:
         self.show_success_message("مخاطب با موفقیت حذف شد")
 
     def build_ui(self):
-        # Build main UI layout
         self.page.add(
             ft.Column(
                 spacing=20,
@@ -1340,7 +1409,6 @@ class PhoneBookApp:
 
 
 def main(page: ft.Page):
-    # Main entry point
     page.assets_dir = "assets"
     app = PhoneBookApp(page)
 
